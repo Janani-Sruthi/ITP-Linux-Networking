@@ -1,4 +1,4 @@
-* **Project Name:** OptiFlow — Communication Network Optimization & Monitoring Tool.
+**Project Name:** OptiFlow — Communication Network Optimization & Monitoring Tool.
 
 
 * **Short Summary:** A lightweight, automated Linux network traffic shaping system that prioritizes mission-critical emergency traffic (e.g., distress signals, VoIP calls) over best-effort normal traffic on unreliable, low-bandwidth links (such as satellite or maritime connections).
@@ -10,7 +10,7 @@
 
 ---
 
-### 2. **System Architecture & Key Components**
+### 1. **System Architecture & Key Components**
 
 Include a high-level summary (or diagram) explaining the four core layers:
 
@@ -50,7 +50,7 @@ Include a high-level summary (or diagram) explaining the four core layers:
 
 ---
 
-### 3. **Prerequisites & Dependencies**
+### 2. **Prerequisites & Dependencies**
 
 #### System & Linux Utilities
 
@@ -109,8 +109,9 @@ Detail the key scripts and commands depending on the test configuration (e.g., S
 #### Running the Backend Automation Engine (Server / Operator Side)
 Must be run as `root` to apply `nftables` and `tc` kernel hooks[cite: 1]:
 ```bash
-sudo venv/bin/python3 optiflow_automation.py
-```[cite: 1]
+ssh root@68.183.238.154
+sudo python3 optiflow_automation.py
+```[cite:1]
 
 #### Running the Web Dashboard / Desktop GUI
 ```bash
