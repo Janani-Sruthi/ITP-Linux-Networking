@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>OptiFlow Network Monitor Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #0b1329;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 30px;
+            color: #f8fafc;
+        }
+        .dashboard-header {
+            border-bottom: 2px solid #1e293b;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .status-badge {
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+        .badge-emergency {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+        .badge-normal {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+        .metric-card {
+            background: #1c2541;
+            border: 1px solid #3a506b;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .metric-card h5 {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .metric-card h2 {
+            font-weight: 700;
+            color: #38bdf8;
+            margin-top: 10px;
+        }
+        .chart-container {
+            background: #1c2541;
+            border: 1px solid #3a506b;
+            border-radius: 20px;
+            padding: 24px;
+            height: 100%;
+        }
+        .recent-tests {
+            background: #1c2541;
+            border: 1px solid #3a506b;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .recent-tests h5 {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .test-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #2a3a5a;
+        }
+        .test-entry:last-child {
+            border-bottom: none;
+        }
+        .test-entry .test-time {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+        .test-entry .test-speed {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .test-entry .test-speed.normal {
+            color: #10b981;
+        }
+        .test-entry .test-speed.emergency {
+            color: #ef4444;
+        }
+        .test-entry .test-badge {
+            font-size: 0.7rem;
+            padding: 2px 10px;
+            border-radius: 30px;
+            font-weight: 600;
+        }
+        .test-badge.normal-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+        .test-badge.emergency-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .scroll-area {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .scroll-area::-webkit-scrollbar {
+            width: 4px;
+        }
+        .scroll-area::-webkit-scrollbar-track {
+            background: #0b1329;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: #3a506b;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="dashboard-header d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="fw-bold m-0"><i class="fa-solid fa-chart-network text-info"></i> OptiFlow Analytics</h1>
+                <p class="text-muted m-0">Dynamic QoS Traffic Classifier Server Console</p>
+            </div>
+        </div>
+
+        <div class="row match-height">
+            <div class="col-lg-4">
+                <div class="metric-card">
+                    <h5><i class="fa-solid fa-laptop text-warning"></i> Active Environment Focus</h5>
+                    <h2 id="activeApp">Scanning processes...</h2>
+                </div>
+                
+                <div class="metric-card">
+                    <h5><i class="fa-solid fa-network-wired text-success"></i> Terminal Host IP</h5>
+                    <h2 id="hostIP">0.0.0.0</h2>
+                </div>
+
+                <div class="metric-card">
+                    <h5><i class="fa-solid fa-server text-primary"></i> Active Routing Port</h5>
+                    <h2 id="activePort">--</h2>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="chart-container">
+                    <h4 class="mb-4 text-info fw-semibold"><i class="fa-solid fa-chart-bar"></i> Dynamic Throughput Distribution Metrics</h4>
+                    <div style="position: relative; height:340px; width:100%">
+                        <canvas id="bandwidthBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        const firebaseConfig = {
+            databaseURL: "https://itpproject-2026-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ============================================
+        // CONSTANTS & STATE
+        // ============================================
+        const MAX_HISTORY_POINTS = 20;
+        let isEmergencyActive = false;
+        
+        // Store the last known normal speed to keep it on the chart
+        let lastNormalSpeed = 0;
+        let lastEmergencySpeed = 0;
+
+        // ============================================
+        // CHART.JS CONFIGURATION
+        // ============================================
+        const ctx = document.getElementById('bandwidthBarChart').getContext('2d');
+
+        // Custom plugin to display data labels on every dot
+        const dataLabelsPlugin = {
+            id: 'customDataLabels',
+            afterDraw: function(chart) {
+                const ctx = chart.ctx;
+                const datasets = chart.data.datasets;
+
+                for (let datasetIndex = 0; datasetIndex < datasets.length; datasetIndex++) {
+                    const dataset = datasets[datasetIndex];
+                    const datasetMeta = chart.getDatasetMeta(datasetIndex);
+                    
+                    if (!datasetMeta.hidden) {
+                        const data = dataset.data;
+                        const color = dataset.borderColor || '#ffffff';
+
+                        for (let i = 0; i < data.length; i++) {
+                            const value = data[i];
+                            
+                            if (value > 0) {
+                                const position = datasetMeta.data[i];
+                                if (position && position.x && position.y) {
+                                    const label = value.toFixed(1) + ' Mbps';
+                                    const fontSize = 9;
+                                    const padding = 4;
+                                    
+                                    ctx.save();
+                                    ctx.font = `bold ${fontSize}px 'Segoe UI', sans-serif`;
+                                    
+                                    const metrics = ctx.measureText(label);
+                                    const textWidth = metrics.width;
+                                    const textHeight = fontSize + 4;
+                                    
+                                    const bgX = position.x - textWidth/2 - padding;
+                                    const bgY = position.y - textHeight - 12;
+                                    const bgWidth = textWidth + padding * 2;
+                                    const bgHeight = textHeight + padding;
+                                    
+                                    ctx.fillStyle = 'rgba(11, 19, 41, 0.85)';
+                                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                                    ctx.shadowBlur = 8;
+                                    ctx.beginPath();
+                                    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 4);
+                                    ctx.fill();
+                                    ctx.shadowBlur = 0;
+                                    
+                                    ctx.strokeStyle = color;
+                                    ctx.lineWidth = 1;
+                                    ctx.beginPath();
+                                    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, 4);
+                                    ctx.stroke();
+                                    
+                                    ctx.fillStyle = '#f8fafc';
+                                    ctx.textAlign = 'center';
+                                    ctx.textBaseline = 'bottom';
+                                    ctx.fillText(label, position.x, position.y - 6);
+                                    
+                                    ctx.restore();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (r > w/2) r = w/2;
+                if (r > h/2) r = h/2;
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                return this;
+            };
+        }
+
+        const bandwidthLineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Normal Priority (Mbps)',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#10b981',
+                        pointBorderWidth: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'Emergency Lane (Mbps)',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#ef4444',
+                        pointBorderColor: '#ef4444',
+                        pointBorderWidth: 2,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { 
+                            color: '#94a3b8', 
+                            font: { weight: 'bold' },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1c2541',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#3a506b',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y || 0;
+                                return `${label}: ${value.toFixed(1)} Mbps`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 50,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { 
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return value + ' Mbps';
+                            }
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Throughput (Mbps)', 
+                            color: '#94a3b8' 
+                        }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.02)' },
+                        ticks: { 
+                            color: '#94a3b8',
+                            maxRotation: 30,
+                            font: { size: 10 }
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Time Check', 
+                            color: '#94a3b8' 
+                        }
+                    }
+                }
+            },
+            plugins: [dataLabelsPlugin]
+        });
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function getShortTime(timestamp) {
+            if (!timestamp) return getCurrentTime();
+            try {
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) return getCurrentTime();
+                return date.toTimeString().split(' ')[0];
+            } catch {
+                return getCurrentTime();
+            }
+        }
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toTimeString().split(' ')[0];
+        }
+
+        function parseSpeed(speedStr) {
+            if (!speedStr) return 0;
+            const cleaned = speedStr.toString().replace(/[^\d.]/g, '');
+            return parseFloat(cleaned) || 0;
+        }
+
+        // ============================================
+        // CHART UPDATE FUNCTION - FIXED TO KEEP BOTH LINES VISIBLE
+        // ============================================
+        function pushChartTimelineData(currentTime, normalVal, emergencyVal) {
+            const labels = bandwidthLineChart.data.labels;
+            const normalDataset = bandwidthLineChart.data.datasets[0].data;
+            const emergencyDataset = bandwidthLineChart.data.datasets[1].data;
+
+            // Update the last known values
+            if (normalVal > 0) lastNormalSpeed = normalVal;
+            if (emergencyVal > 0) lastEmergencySpeed = emergencyVal;
+
+            labels.push(currentTime);
+            
+            // For normal dataset: use the actual value if > 0, otherwise use the last known normal speed
+            // This keeps the normal line visible even during emergency tests
+            normalDataset.push(normalVal > 0 ? normalVal : lastNormalSpeed);
+            
+            // For emergency dataset: use the actual value if > 0, otherwise use the last known emergency speed
+            emergencyDataset.push(emergencyVal > 0 ? emergencyVal : lastEmergencySpeed);
+
+            if (labels.length > MAX_HISTORY_POINTS) {
+                labels.shift();
+                normalDataset.shift();
+                emergencyDataset.shift();
+            }
+
+            bandwidthLineChart.update('none');
+        }
+
+        // ============================================
+        // UPDATE KPI ELEMENTS
+        // ============================================
+        function updateKPIElements(data) {
+            const isEmergency = data.isEmergency;
+
+            if (data) {
+                document.getElementById('hostIP').textContent = data.laptopIP || "127.0.0.1";
+                if (isEmergency) {
+                    document.getElementById('activePort').textContent = "9999" || "--";
+                    document.getElementById('activeApp').textContent = data.activeApplication || "Network Traffic";
+                } else {
+                    document.getElementById('activePort').textContent = data.port || "--";
+                    document.getElementById('activeApp').textContent = data.activeApplication || "Network Traffic";
+                }
+            }
+        }
+
+        // ============================================
+        // FIREBASE LISTENERS - FIXED
+        // ============================================
+
+        // Normal data listener
+        db.ref('normal').limitToLast(1).on('value', snapshot => {
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    const data = child.val();
+                    console.log("📥 Normal data received:", data);
+                    
+                    const numericalSpeed = parseSpeed(data.speed);
+                    const currentTime = getShortTime(data.timestamp);
+
+                    // Update last normal speed
+                    if (numericalSpeed > 0) {
+                        lastNormalSpeed = numericalSpeed;
+                    }
+
+                    // Push both datasets - normal gets the actual value, emergency keeps its last value
+                    pushChartTimelineData(currentTime, numericalSpeed, isEmergencyActive ? 0: lastEmergencySpeed);
+
+                    // Only update KPI if NOT in emergency mode
+                    if (!isEmergencyActive) {
+                        console.log("🔄 Updating KPI with normal data");
+                        updateKPIElements(data);
+                    } else {
+                        console.log("⏸️ Skipping KPI update - emergency mode active");
+                    }
+                });
+            }
+        });
+
+        // Emergency data listener
+        db.ref('emergency').limitToLast(1).on('value', snapshot => {
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    const data = child.val();
+                    console.log("🚨 Emergency data received:", data);
+                    
+                    const numericalSpeed = parseSpeed(data.speed);
+                    const currentTime = getShortTime(data.timestamp);
+
+                    // Update last emergency speed
+                    if (numericalSpeed > 0) {
+                        lastEmergencySpeed = numericalSpeed;
+                    }
+
+                    // Push both datasets - emergency gets the actual value, normal keeps its last value
+                    pushChartTimelineData(currentTime, lastNormalSpeed, numericalSpeed);
+
+                    // SET EMERGENCY MODE
+                    isEmergencyActive = true;
+                    console.log("🚨 EMERGENCY MODE ACTIVATED");
+                    
+                    // Update KPI with emergency data
+                    updateKPIElements(data);
+
+                    // Clear any existing timer
+                    if (window.emergencyTimer) {
+                        clearTimeout(window.emergencyTimer);
+                    }
+                    
+                    // Auto-reset emergency after 4 seconds
+                    window.emergencyTimer = setTimeout(() => {
+                        console.log("🔄 Resetting emergency mode");
+                        isEmergencyActive = false;
+                        
+                        // Force a KPI update with the last normal data to reset UI
+                        // Get the latest normal data
+                        db.ref('normal').limitToLast(1).once('value', snapshot => {
+                            if (snapshot.exists()) {
+                                snapshot.forEach(child => {
+                                    const normalData = child.val();
+                                    console.log("🔄 Resetting KPI with normal data");
+                                    updateKPIElements(normalData);
+                                    
+                                });
+                            }
+                        });
+                    }, 4000);
+                });
+            }
+        });
+
+        // ============================================
+        // START DASHBOARD
+        // ============================================
+        loadInitialRecentTests();
+
+        console.log('🚀 OptiFlow Dashboard running');
+        console.log('📊 Speed values displayed on every dot');
+    </script>
+
+</body>
+</html>
